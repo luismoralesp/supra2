@@ -122,7 +122,7 @@ class CrudService(BaseService):
 				if DATA in json_body:
 					data = json_body[DATA]
 					model_class = getattr(self.models, model)
-					return {"data": str(model_class.model.objects)}
+					return {"data": data, "objects": str(model_class.model.objects), "query": self.query}
 				else:
 					return {"error": "'data' param is missing"}
 				# end if

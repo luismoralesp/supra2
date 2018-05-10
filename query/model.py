@@ -14,7 +14,7 @@ class Watcher(type):
 	# end def
 # end class
 
-class relation(object):
+class relation(object): 
 	__metaclass__ = Watcher
 
 	def __init__(self, model_name):
@@ -96,6 +96,12 @@ class model(relation):
 		return "%s(%s)" % (self.model_name, ', '.join(params))
 	# end def
 
+	def drop_sql(self):
+		return """DROP TABLE %(model_name)s;""" % {
+			'model_name': self.model_name,
+		}
+	# end def
+
 	def create_sql(self):
 		columns = []
 		for col in dir(self):
@@ -116,7 +122,7 @@ class model(relation):
 		else:
 			constrains = ""
 		# end if
-		sql = "CREATE TABLE %(model_name)s (%(columns)s%(constrains)s)" % {
+		sql = "CREATE TABLE %(model_name)s (%(columns)s%(constrains)s);" % {
 			'model_name': self.model_name,
 			'columns': ', '.join(columns),
 			'constrains': constrains,
@@ -202,10 +208,13 @@ class unique(column):
 # end class
 
 class constrain(object):
-	def __init__(self, constrain_name, *columns):
+	number = 0
+	def __init__(self, constrain_name, constrain_type=None, *columns):
 		self.constrain_name = constrain_name
+		self.constrain_type = constrain_type or "cons"  + str(constrain.number)
 		self.columns = columns
-		self.references = []
+		self.references = [] 
+		constrain.number = constrain.number + 1
 	# end def
 
 	def reference(self, *references):
@@ -216,7 +225,7 @@ class constrain(object):
 	def as_sql(self):
 		columns = []
 		for column in self.columns:
-			columns.append(str(column))
+			columns.append(column.column_name)
 		# end for
 		references = []
 		for reference in self.references:
@@ -227,8 +236,9 @@ class constrain(object):
 		else:
 			references = ""
 		# end if
-		return "CONSTRAINT %(constrain_name)s (%(columns)s)%(references)s" % {
+		return "CONSTRAINT %(constrain_type)s %(constrain_name)s (%(columns)s)%(references)s" % {
 			"constrain_name": self.constrain_name,
+			"constrain_type": self.constrain_type,
 			"columns": ', '.join(columns),
 			"references": references
 		}

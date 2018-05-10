@@ -126,11 +126,20 @@ class select(object):
 class insert(object):
 	def __init__(self, table):
 		self.table = table
-		self.values = {}
+		self.columns_values = {}
 	# end def
 
-	def value(self, **values):
-		self.values.update(values)
+	def values(self, **values):
+		self.columns_values.update(values)
+		return self
+	# end def
+  
+	def as_sql(self):
+		return """INSERT INTO %(table)s (%(columns)s) VALUES ('%(values)s') """ % {
+			"table": self.table.as_sql(),
+			"columns": ', '.join(self.columns_values.keys()),
+			"values": "', '".join(self.columns_values.values()),
+		}
 	# end def
 # end class
 

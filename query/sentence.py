@@ -59,7 +59,7 @@ class context(object):
 		return self
 	# end def
 
-	def as_sql1(self):
+	def as_sql_context(self):
 		sql = "DO $$\n"
 		for declare in self.declares:
 			sql = sql + declare.as_sql() + ";\n"
@@ -230,7 +230,7 @@ class if_cond(context):
 	# end def
 
 	def as_sql(self):
-		sql = "if %(compare)s loop\n" % {
+		sql = "if %(compare)s then\n" % {
 			"compare": self.compare
 		}
 		sql = sql + super(if_cond, self).as_sql()

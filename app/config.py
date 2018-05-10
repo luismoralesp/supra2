@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 
+from __future__ import unicode_literals
 import os
 
 DB_CONFIG = {
 	'default': {
-		'dbname': 'postgres',
+		'dbname': 'app',
 		'user': 'postgres',
-		'host': '104.236.33.228',
-		'password': 'Exile*74522547',
+		'host': 'localhost',
+		'password': 'app123456',
 		'type': 'postgres'
 	}
 }

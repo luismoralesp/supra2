@@ -8,7 +8,7 @@ class ConnectionBase(object):
 	# end def
 
 	@staticmethod
-	def conect(config):
+	def conect(config, config_name="default"):
 		conf = config.DB_CONFIG[config_name]
 		db = importlib.import_module("dbs.%s" % (config.DB_CONFIG[config_name]['type'], ))
 		return db.Connection(conf)
