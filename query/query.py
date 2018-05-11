@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-from sentence import comparation
 
-class select(object):
+class query(object):
+	pass
+# end class
+
+class select(query):
 	def __init__(self, *selects):
 		self.selects = []
 		self.select(*selects)
@@ -123,26 +126,67 @@ class select(object):
 	# end def
 # end class
 
-class insert(object):
+class insert(query):
 	def __init__(self, table):
 		self.table = table
 		self.columns_values = {}
+		self.column = False
 	# end def
 
 	def values(self, **values):
 		self.columns_values.update(values)
 		return self
 	# end def
+
+	def returning(self, column):
+		self.column = column
+		return self
+	# end def
   
 	def as_sql(self):
-		return """INSERT INTO %(table)s (%(columns)s) VALUES ('%(values)s') """ % {
+		if self.column:
+			returning = """ RETURNING %s""" % self.column
+		else:
+			returning = ""
+		# end if
+		return """INSERT INTO %(table)s (%(columns)s) VALUES ('%(values)s')%(returning)s""" % {
 			"table": self.table.as_sql(),
 			"columns": ', '.join(self.columns_values.keys()),
 			"values": "', '".join(self.columns_values.values()),
+			"returning": returning,
 		}
 	# end def
 # end class
 
+class update(query):
+	def __init__(self, table):
+		self.table = table
+		self.columns_values = {}
+		self.comparations = False
+	# end def
+
+	def set(self, **values):
+		self.columns_values.update(values)
+		return self
+	# end def
+  
+	def where(self, comparations):
+		self.comparations = comparations
+		return self
+	# end def
+  
+	def as_sql(self):
+    sql_set = ""
+		for col in self.columns_values:
+			sql_set = sql_set + ("""%s = '%s'""" % (col, self.columns_values[col]))
+		# end for
+		return """UPDATE %(table)s SET (%(sets)s) WHERE %(where)s""" % {
+			"table": self.table.as_sql(),
+			"sets": sql_set,
+			"where": sets.comparations.as_sql(),
+		}
+	# end def
+# end class
 class perform(select):
 	def __init__(self, *selects):
 		super(perform, self).__init__(*selects)
@@ -173,6 +217,7 @@ class seljoin(object):
 	# end def
 
 	def join(self):
+		from sentence import comparation
 		old_foreign_key = None
 		joins = None
 		for foreign_key in self.foreign_keys:

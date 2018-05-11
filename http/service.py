@@ -5,6 +5,8 @@ from BaseHTTPServer import BaseHTTPRequestHandler
 import cgi
 import json
 from query import model
+from query.query import insert, update, select, perform
+from query.sentence import context, body, declare, for_loop, if_cond
 from dbs import db
 
 class BaseService(BaseHTTPRequestHandler):
@@ -91,6 +93,15 @@ class BaseService(BaseHTTPRequestHandler):
 CRUD_TYPE = 'crud_type'
 MODEL = 'model'
 DATA = 'data'
+NAME = 'name'
+TYPE = 'type'
+VALUE = 'value'
+DACLARE = 'declare_as'
+RETURNING = 'returning'
+INSERT_TYPE = 'insert'
+UPDATE_TYPE = 'update'
+DELETE_TYPE = 'delete'
+SELECT_TYPE = 'select'
 
 class CrudService(BaseService):
 	query = None
@@ -107,32 +118,71 @@ class CrudService(BaseService):
 	def get_page(self):
 		return self.get.get('page', '0')
 	# end def
-
+  
+	def insert(self, data):
+		model_class = getattr(self.models, data[MODEL])
+		values = data[DATA]
+		response = insert(model_class.model).values(**values)
+		if RETURNING in data:
+			response = response.returning(data[RETURNING])
+		# end if
+		return response
+	# end def
+  
+	def update(self):
+		return self.get.get('page', '0')
+	# end def
+  
+	def select(self):
+		return self.get.get('page', '0')
+	# end def
+  
+	def delete(self):
+		return self.get.get('page', '0')
+	# end def
+  
+	def crud_list(self, data, ctxt):
+		for elm in data:
+			self.crud(elm, ctxt)
+		# end for
+	# end def
+  
+	def crud_dict(self, data, ctxt):
+		if data[CRUD_TYPE] == INSERT_TYPE:
+			query = self.insert(data)
+		elif data[CRUD_TYPE] == UPDATE_TYPE:
+			query = self.update(data)
+		elif data[CRUD_TYPE] == DELETE_TYPE:
+			query = self.delete(data)
+		elif data[CRUD_TYPE] == SELECT_TYPE:
+			query = self.select(data)
+		# end if
+		if DACLARE in data:
+			vdt = data[DACLARE]
+			var = declare(vdt[NAME], vdt[TYPE])
+			ctxt.declares.append(var)
+			query = var.set(query)
+		# end if
+		ctxt.do(query)
+	# end def
+  
+	def crud(self, data, ctxt):
+		if isinstance(data, list):
+			return self.crud_list(data, ctxt)
+		elif isinstance(data, dict):
+			return self.crud_dict(data, ctxt)
+    # end if
+	# end def
+  
 	def response(self, *params):
 		try:
 			json_body = self.json_body()
+			ctxt = context()
+			self.crud(json_body, ctxt)
+			return {"sql": ctxt.as_sql_context()}
 		except Exception as e:
-			return {"error": "Invalid json"}
+			return {"error": str(e)}
 		# end if
-
-		if CRUD_TYPE in json_body:
-			crud_type = json_body[CRUD_TYPE]
-			if MODEL in json_body:
-				model = json_body[MODEL]
-				if DATA in json_body:
-					data = json_body[DATA]
-					model_class = getattr(self.models, model)
-					return {"data": data, "objects": str(model_class.model.objects), "query": self.query}
-				else:
-					return {"error": "'data' param is missing"}
-				# end if
-			else:
-				return {"error": "'model' param is missing"}
-			# end if
-		else:
-			return {"error": "'crud_type' param is missing"}
-		# end if
-
 		#con = ConnectionBase.connect()
 		#return con.execute(self.get_query().paginate(self.get_paginated_by()), self.get_page())
 	# end def

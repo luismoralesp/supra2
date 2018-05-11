@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+from query import query
 
 class sentence(object):
 	def __init__(self, sentence, context):
@@ -95,9 +96,14 @@ class set():
 	# end def
 
 	def as_sql(self):
+		if isinstance(self.value, query): 
+			value = "(%s)" % self.value.as_sql()
+		else:
+			value = self.value
+		# end if
 		return "%(var_name)s := %(value)s" % {
 			"var_name": self.var_name,
-			"value": self.value,
+			"value": value,
 		}
 	# end def
 # end class

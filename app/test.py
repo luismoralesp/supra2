@@ -14,14 +14,14 @@ class ScriptTest(unittest.TestCase):
 		from query.query import insert, select, perform
 		from query.sentence import context, body, declare, for_loop, if_cond
 		from query.types import integer, varchar
-		from query.model import model, constrain
+		from query.model import model, constrain#
 
 		class a(model):
 			id = model.primarykey(integer)
 			sd = model.column(varchar(11))
 		# end class
 
-		body.do(
+		body.do (
 			insert(a.model).values(id='1', sd='hello'),
 			insert(a.model).values(id='2', sd='hello2'),
 			if_cond('(extract(seconds from current_time)::int % 2 = 0)').do(
@@ -74,16 +74,16 @@ class ScriptTest(unittest.TestCase):
 			#telefono_mecanico = select(datospersonales.telefono).seljoin(mecanico_id, mecanico.datospersonales_id)
 		# end class
 
-
 		#print a.set(reparacion.telefono_mecanico).as_sql()
 		#print select(reparacion.id, reparacion.telefono_mecanico).as_sql()
 		#print reparacion.model.create_sql()
 		#print reparacion.model.objects.as_sql()
+    
 		a = declare('a', integer)
 		body.do(
 			a.set(a.plus(1)),
-			for_loop(a, 1, 10).do(
-				if_cond(a.lt(11)).do(
+			for_loop(a, 1, 10).do (
+				if_cond(a.lt(11)).do (
 				)
 			)
 		)
