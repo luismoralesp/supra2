@@ -10,6 +10,7 @@ def main(app, config, server_class=HTTPServer, port=8081):
     models = importlib.import_module("%s.models" % (app, ))
     server_address = ('', port)
     CrudService.models = models
+    CrudService.config = config
     httpd = server_class(server_address, CrudService)
     print 'Starting httpd...'
     httpd.serve_forever()

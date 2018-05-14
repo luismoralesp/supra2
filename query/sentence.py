@@ -115,10 +115,15 @@ class operation(object):
 		self.var_name2 = var_name2
 	# end def
 	def as_sql(self):
+		if isinstance(self.var_name2, operation):
+			var_name2 = "(%s)" % (self.var_name2.as_sql(), )
+		else:
+			var_name2 = self.var_name2
+		# end if
 		return "(%(var_name1)s %(operator)s %(var_name2)s)" % {
 			"var_name1": self.var_name1,
 			"operator": self.operator,
-			"var_name2": self.var_name2,
+			"var_name2": var_name2,
 		}
 	# end def
 
@@ -176,7 +181,19 @@ class operation(object):
 # end class
 
 class comparation(operation):
-	pass
+	@staticmethod
+	def comparations(**comps):
+		comp = False
+		for column in comps:
+			value = comps[column]
+			if comp:
+				comp = comp.y(comparation(column, '=', value))
+			else:
+				comp = comparation(column, '=', value)
+			# end if
+		# end for
+		return comp
+	# end def
 # end class
 
 class close(object):

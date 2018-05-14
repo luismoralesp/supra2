@@ -6,7 +6,7 @@ import cgi
 import json
 from query import model
 from query.query import insert, update, select, perform
-from query.sentence import context, body, declare, for_loop, if_cond
+from query.sentence import context, body, declare, for_loop, if_cond, comparation
 from dbs import db
 
 class BaseService(BaseHTTPRequestHandler):
@@ -68,11 +68,50 @@ class BaseService(BaseHTTPRequestHandler):
 	def body(self):
 		length = int(self.headers.getheader('content-length'))
 		return json.loads(self.rfile.read(length))
-	# end def	# end def
+	# end def
+	
+	def review_list(self, json_body):
+		for key in range(len(json_body)):
+			json_body[key] = self.review(json_body[key])
+		# end for
+		return json_body
+	# end def
+	
+	def review_str(self, json_body):
+		import re
+		json_body = json_body.replace("'", "''")
+		if json_body.startswith("%"):
+			json_body = json_body.replace("%", "")
+			json_body = re.sub("\W", "", json_body)
+			json_body = re.sub("\s", "", json_body)
+		else:
+			json_body = "'%s'" % json_body
+		# end if
+		return json_body
+	# end def
+	
+	def review(self, json_body):
+		if isinstance(json_body, str) or isinstance(json_body, unicode):
+				return self.review_str(json_body)
+		elif isinstance(json_body, dict):
+				return self.review_dict(json_body)
+		elif isinstance(json_body, list):
+				return self.review_list(json_body)
+		# end if
+		return json_body
+	# end def
+	
+	def review_dict(self, json_body):
+		for key in json_body:
+			json_body[key] = self.review(json_body[key])
+		# end for
+		return json_body
+	# end def
 
 	def json_body(self):
 		length = int(self.headers.getheader('content-length'))
-		return json.loads(self.rfile.read(length))
+		json_body = json.loads(self.rfile.read(length))
+		return self.review(json_body)
 	# end def
 
 	@property
@@ -93,10 +132,14 @@ class BaseService(BaseHTTPRequestHandler):
 CRUD_TYPE = 'crud_type'
 MODEL = 'model'
 DATA = 'data'
+SET = 'set'
 NAME = 'name'
+WHERE = 'where'
 TYPE = 'type'
 VALUE = 'value'
+VALUES = 'values'
 DACLARE = 'declare_as'
+COLUMNS = 'columns'
 RETURNING = 'returning'
 INSERT_TYPE = 'insert'
 UPDATE_TYPE = 'update'
@@ -119,25 +162,48 @@ class CrudService(BaseService):
 		return self.get.get('page', '0')
 	# end def
   
-	def insert(self, data):
+	def insert(self, data, ctxt):
 		model_class = getattr(self.models, data[MODEL])
-		values = data[DATA]
+		values = data[VALUES]
 		response = insert(model_class.model).values(**values)
+		if RETURNING in data:
+			response = response.returning(data[RETURNING])
+		# end if
+		if DACLARE in data:
+			vdt = data[DACLARE]
+			var = declare(vdt[NAME], vdt[TYPE])
+			ctxt.declares.append(var)
+			response.into(var)
+		# end if
+		return response
+	# end def
+  
+	def update(self, data, ctxt):
+		model_class = getattr(self.models, data[MODEL])
+		sets = data[SET]
+		where = data[WHERE]
+		response = update(model_class.model).set(**sets).where(comparation.comparations(**where))
 		if RETURNING in data:
 			response = response.returning(data[RETURNING])
 		# end if
 		return response
 	# end def
   
-	def update(self):
-		return self.get.get('page', '0')
+	def select(self, data, ctxt):
+		model_class = getattr(self.models, data[MODEL])
+		columns = data[COLUMNS]
+		where = data[WHERE]
+		query = select(*columns).from_models(model_class.model).where(comparation.comparations(**where))
+		if DACLARE in data:
+			vdt = data[DACLARE]
+			var = declare(vdt[NAME], vdt[TYPE])
+			ctxt.declares.append(var)
+			query = var.set(query)
+		# end if
+		return query
 	# end def
   
-	def select(self):
-		return self.get.get('page', '0')
-	# end def
-  
-	def delete(self):
+	def delete(self, data, ctxt):
 		return self.get.get('page', '0')
 	# end def
   
@@ -149,19 +215,13 @@ class CrudService(BaseService):
   
 	def crud_dict(self, data, ctxt):
 		if data[CRUD_TYPE] == INSERT_TYPE:
-			query = self.insert(data)
+			query = self.insert(data, ctxt)
 		elif data[CRUD_TYPE] == UPDATE_TYPE:
-			query = self.update(data)
+			query = self.update(data, ctxt)
 		elif data[CRUD_TYPE] == DELETE_TYPE:
-			query = self.delete(data)
+			query = self.delete(data, ctxt)
 		elif data[CRUD_TYPE] == SELECT_TYPE:
-			query = self.select(data)
-		# end if
-		if DACLARE in data:
-			vdt = data[DACLARE]
-			var = declare(vdt[NAME], vdt[TYPE])
-			ctxt.declares.append(var)
-			query = var.set(query)
+			query = self.select(data, ctxt)
 		# end if
 		ctxt.do(query)
 	# end def
@@ -175,15 +235,34 @@ class CrudService(BaseService):
 	# end def
   
 	def response(self, *params):
+		import sys, os, traceback
+		from dbs.db import ConnectionBase
+		
 		try:
 			json_body = self.json_body()
 			ctxt = context()
 			self.crud(json_body, ctxt)
-			return {"sql": ctxt.as_sql_context()}
+			
+
+			con = ConnectionBase.conect(self.config)
+			if self.method == 'PUT':
+				print ctxt.as_sql_context()
+				return con.perform(ctxt.as_sql_context())
+			elif self.method == 'POST':
+				print ctxt.as_sql()
+				return con.execute(ctxt.as_sql())
+			# end if
 		except Exception as e:
-			return {"error": str(e)}
-		# end if
-		#con = ConnectionBase.connect()
-		#return con.execute(self.get_query().paginate(self.get_paginated_by()), self.get_page())
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+			formatted_lines = traceback.format_exc().splitlines()
+			return {
+				'type': str(exc_type.__name__),
+				'traceback': formatted_lines,
+				'file': fname,
+				'error': str(e)
+			}
+		# end try
+		
 	# end def
 # end class

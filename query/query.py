@@ -131,6 +131,7 @@ class insert(query):
 		self.table = table
 		self.columns_values = {}
 		self.column = False
+		self.var = False
 	# end def
 
 	def values(self, **values):
@@ -141,6 +142,10 @@ class insert(query):
 	def returning(self, column):
 		self.column = column
 		return self
+
+	def into(self, var):
+		self.var = var
+		return self
 	# end def
   
 	def as_sql(self):
@@ -149,11 +154,17 @@ class insert(query):
 		else:
 			returning = ""
 		# end if
-		return """INSERT INTO %(table)s (%(columns)s) VALUES ('%(values)s')%(returning)s""" % {
+		if self.var:
+			into = """ INTO %s""" % self.var
+		else:
+			into = ""
+		# end if
+		return """INSERT INTO %(table)s (%(columns)s) VALUES (%(values)s)%(returning)s%(into)s""" % {
 			"table": self.table.as_sql(),
 			"columns": ', '.join(self.columns_values.keys()),
-			"values": "', '".join(self.columns_values.values()),
+			"values": ', '.join(self.columns_values.values()),
 			"returning": returning,
+			"into": into,
 		}
 	# end def
 # end class
@@ -176,17 +187,18 @@ class update(query):
 	# end def
   
 	def as_sql(self):
-    sql_set = ""
+		sql_set = []
 		for col in self.columns_values:
-			sql_set = sql_set + ("""%s = '%s'""" % (col, self.columns_values[col]))
+			sql_set.append("""%s = %s""" % (col, self.columns_values[col]))
 		# end for
-		return """UPDATE %(table)s SET (%(sets)s) WHERE %(where)s""" % {
+		return """UPDATE %(table)s SET %(sets)s WHERE %(where)s""" % {
 			"table": self.table.as_sql(),
-			"sets": sql_set,
-			"where": sets.comparations.as_sql(),
+			"sets": ', '.join(sql_set),
+			"where": self.comparations.as_sql(),
 		}
 	# end def
 # end class
+
 class perform(select):
 	def __init__(self, *selects):
 		super(perform, self).__init__(*selects)
